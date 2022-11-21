@@ -6,7 +6,6 @@ import os
 import pandas as pd
 import time
 
-from ftx_handler import ftx_handler,percentage_of_balance
 from binance_handler import binance_handler
 
 m =  binance_handler()
@@ -25,7 +24,7 @@ def trade_the_message(symbol="",position_status="",position_side="",entry_price=
         symbol=symbol.replace('USDT','-PERP')
     print(position_status,position_side in ['open'],position_side in ['reduce', 'close'])
     if position_status in ['open']:
-        m.post_open_pos(symbol,perc=percentage_of_balance,side=side)
+        m.post_open_pos(symbol,amount='',side=side) #(symbol,amount,side ='buy')
     elif position_status in ['reduce', 'close']:
         m.get_and_close_open_position(ticker=symbol)
     print(symbol,position_side,position_status,entry_price)

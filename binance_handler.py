@@ -1,10 +1,10 @@
 
 
-api_key_ = "B9MMcfPN49IH8mlC8iAia8dW1HG6gQ5IXG8k4AIgYkX5nT01GVCQBiIZlhPiPbJ"
-api_secret_ = "ig2b0FuLpU7Ts1VlgcqAjBMdF8D8cSlgXQD43Mdjdsoxtgoqo2gKi4JEapAioNi"
+api_key_ = "dIDNRJuxbfHQFrYUDYmU9Xcu3WGoMJEbORxLp4KG8fzmgMfpTGCtnhWhXGXZKeck"
+api_secret_ = "gbFRtqJdEGhgm0lWs5ugSR4SisTseUoTW07oHhj2gk2U9SfYrDhOBxp5apBjzNOFA"
 
 percentage_of_balance = 90 #%
-leverage = 17
+leverage = 10
 stop_loss =2 #%
 
 
@@ -18,7 +18,7 @@ from datetime import datetime
 
 
 
-leverage = 1
+
 def write_logs(sentence):
     with open("logs.txt",'a') as fl :
         fl.write(str(datetime.now())+'::'+sentence+'\n')
@@ -61,9 +61,10 @@ class binance_handler:
             
     def change_leverage(self,ticker,leverage):
         try:
-            self.client.futures_change_leverage(symbol=ticker,leverage=leverage)
+            res = self.client.futures_change_leverage(symbol=ticker,leverage=leverage)
+            write_logs(str(datetime.now()) + " ::: Change leverage res : " + str(res))
         except Exception as e:
-            print(e)
+            write_logs(str(datetime.now()) + " ::: Change leverage error : " + str(e))
     
 
     def post_open_position(self,symbol,perc,side ='buy'):
@@ -163,10 +164,14 @@ class binance_handler:
             return 0
 
     def post_open_pos(self,symbol,amount,side ='buy'):
-        
+        global percentage_of_balance,leverage
         try:
+            self.change_leverage(symbol,leverage)
+            symbol = symbol.lower().replace('-perp','usdt').upper()
             write_logs(str(datetime.now()) + " ::: Open order recieved for : " + symbol + " and side "+side )
             last =  self.get_price(symbol)
+
+            amount =  self.get_balance()*percentage_of_balance/100
             #write_logs(str(datetime.now()) + " :::              balance is  : " + str(balance) +" and percentage is "+ str(perc) )
             amount = amount/last*leverage
             write_logs(str(datetime.now()) + " :::              resulting amount is  : " + str(amount) )
@@ -178,11 +183,11 @@ class binance_handler:
                 res= self.place_market_long_order(symbol, amount)
                 print( '   Order result = ',res)
                 write_logs(str(datetime.now()) + " :::             Not in position, placing order  : " + side + " Amount is  : " + str(amount))
-            
+                res = self.place_sl_long_order(symbol, amount,price=last*(1-stop_loss/100))
             if side=="sell":
                 res= self.place_market_short_order(symbol, amount)
                 write_logs(str(datetime.now()) + " :::             Not in position, placing order  : " + side + " Amount is  : " + str(amount))
-   
+                res = self.place_sl_short_order(symbol, amount,price=last*(1+stop_loss/100))
             return amount
         except Exception as e:
             print("Erorr in placing long: "+str(e))
@@ -241,7 +246,7 @@ class binance_handler:
             return False,'','',str(e),''
 
 
-    def place_market_long_order(self,ticker, quantity,price):
+    def place_market_long_order(self,ticker, quantity,price=0):
         #try:
         #    self.client.futures_change_margin_type(symbol=ticker, marginType='ISOLATED')
         #except Exception as e:
@@ -379,7 +384,7 @@ class binance_handler:
                 return  True
             return False
 
-    def place_market_short_order(self,ticker, quantity,price):
+    def place_market_short_order(self,ticker, quantity,price=0):
         try:
             self.client.futures_change_margin_type(symbol=ticker, marginType='ISOLATED')
         except Exception as e:
@@ -453,6 +458,7 @@ class binance_handler:
 
     def get_and_close_open_position(self,ticker):
         try:
+            ticker = ticker.lower().replace('-perp','usdt').upper()
             temp = self.client.futures_position_information(symbol=ticker)
             no_position = True
             for elt in temp:
@@ -495,7 +501,7 @@ class binance_handler:
 
 
 
-#m = binance_handler()
+m = binance_handler()
 
-
-#print(m.get_and_close_open_position(ticker='BTCUSDT'))
+m.post_open_pos(symbol='BTCUSDT',amount=3,side ='buy')
+print(m.get_balance())
